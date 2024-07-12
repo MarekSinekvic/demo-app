@@ -1,0 +1,45 @@
+#main-block {
+    position:relative;
+}
+.overlay {
+    background:white;
+    position: absolute;
+    z-index:-1;
+
+    border-radius: 10px;
+    transition: 0.1s;
+}
+.overlay.wrong {
+    background-color: rgb(255, 92, 92);
+}
+.overlay.n1 {
+    top: -10px;
+    left: -10px;
+
+    opacity: 0.6;
+    width: calc(100% + 20px);
+    height:calc(100% + 20px);
+
+}
+.overlay.n2 {
+    top: -20px;
+    left: -20px;
+
+    opacity: 0.3;
+    width: calc(100% + 40px);
+    height:calc(100% + 40px);
+    
+    transition: 0.3s;
+    transition-delay: 0.1s;
+}
+.overlay.n3 {
+    top: -30px;
+    left: -30px;
+
+    opacity: 0.1;
+    width: calc(100% + 60px);
+    height:calc(100% + 60px);
+    
+    transition: 0.3s;
+    transition-delay: 0.3s;
+}

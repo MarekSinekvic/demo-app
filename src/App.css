@@ -1,0 +1,13 @@
+ul {
+    margin: 0px;
+    padding:0px 10px;
+    list-style: none;
+}
+.App {
+    display:flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+html, body, #root, .App {
+    height: 100%;
+}

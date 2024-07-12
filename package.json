@@ -1,0 +1,72 @@
+{
+  "name": "demo-app",
+  "author": {
+    "name": "demo-name",
+    "email": "noemail@gmail.com",
+    "url": "https://www.google.ru"
+  },
+  "description": "demo-app description",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "convert-svg-to-png": "^0.6.4",
+    "electron-squirrel-startup": "^1.0.1",
+    "mysql": "^2.18.1",
+    "react-jsbarcode": "^1.0.1"
+  },
+  "scripts": {
+    "react-start": "react-scripts start",
+    "start": "electron-forge start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "electron-dev": "electron .",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
+  },
+  "main": "electron-index.js",
+  "homepage": ".",
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@chakra-ui/icons": "^2.1.1",
+    "@chakra-ui/react": "^2.8.2",
+    "@electron-forge/cli": "^7.4.0",
+    "@electron-forge/maker-deb": "^7.4.0",
+    "@electron-forge/maker-rpm": "^7.4.0",
+    "@electron-forge/maker-squirrel": "^7.4.0",
+    "@electron-forge/maker-zip": "^7.4.0",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.4.0",
+    "@electron-forge/plugin-fuses": "^7.4.0",
+    "@electron/fuses": "^1.8.0",
+    "@emotion/react": "^11.11.4",
+    "@emotion/styled": "^11.11.0",
+    "electron": "^29.3.3",
+    "framer-motion": "^11.0.12",
+    "mysql": "^2.18.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.3",
+    "react-scripts": "5.0.1",
+    "web-vitals": "^2.1.4"
+  }
+}
