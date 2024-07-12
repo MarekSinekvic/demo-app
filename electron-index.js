@@ -16,8 +16,7 @@ let mysql_options = {
 };
 const barcodesFolderPath = path.join(__dirname,'/barcodes/');
 function checkMysqlOptions() {
-    let mysql_options_path = path.join(__dirname,mysql_options.fileName);
-    console.log(mysql_options_path);
+    let mysql_options_path = mysql_options.fileName;
     if (fs.existsSync(mysql_options_path)) {
         let data = fs.readFileSync(mysql_options_path,{encoding:'utf-8'});
         mysql_options = JSON.parse(data);
@@ -27,8 +26,23 @@ function checkMysqlOptions() {
 }
 checkMysqlOptions();
 
-const updateServer = 'https://demo-app-jnbk58pu0-mareksinekvics-projects.vercel.app';
-const updateUrl = `${updateServer}/update/${process.platform}/${app.getVersion()}`;
+let options = {
+    fileName: 'options.json',
+    updateServer: 'demo-7cu55vvh0-mareksinekvics-projects.vercel.app'
+};
+function checkOptions() {
+    let options_path = options.fileName;
+    try {
+        fs.accessSync(options_path);
+        let data = fs.readFileSync(options_path,{encoding:'utf-8'});
+        options = JSON.parse(data);
+    } catch (error) {
+        fs.appendFile(options_path, JSON.stringify(options),(err)=>{console.log(err);});
+    }
+}
+checkOptions();
+
+const updateUrl = `${options.updateServer}/update/${process.platform}/${app.getVersion()}`;
 autoUpdater.setFeedURL({url:updateUrl});
 function checkUpdates() {
     autoUpdater.checkForUpdates();
@@ -62,7 +76,7 @@ function checkUpdates() {
           });
     });
 }
-// checkUpdates();
+checkUpdates();
 
 let DBError = null;
 let db = mysql.createConnection({
@@ -93,7 +107,8 @@ const createWindow = () => {
     win.maximize();
     
     console.log(process.env.NODE_ENV);
-    win.loadURL("http://localhost:3000");
+    // win.loadURL("http://localhost:3000");
+    win.loadFile(path.join(__dirname,"build/index.html"))
     // process.env.NODE_ENV == "development" ? win.loadURL("http://localhost:3000") : win.loadFile(path.join(__dirname,"build/index.html"));
     win.webContents.openDevTools();
 
