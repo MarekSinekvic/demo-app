@@ -18,7 +18,8 @@ import {
     ModalHeader,
     ModalBody,
     ModalFooter,
-    Stack
+    Stack,
+    Checkbox
   } from '@chakra-ui/react';
 import {Button, Flex, Input, Select, Divider} from '@chakra-ui/react';
 import {ArrowDownIcon, ArrowUpDownIcon, CloseIcon} from "@chakra-ui/icons"
@@ -72,6 +73,38 @@ function DataHeader({rows, rowMask, colState, colStateSetter, tableOptions = {}}
       </Popover>
     );
   }
+  const ColumnSettingsPopover = (row,i)=>{
+    
+    // <Checkbox>Hidden</Checkbox>
+    return (
+      <Popover>
+        <PopoverTrigger>
+          <ArrowUpDownIcon color={(colState.filters.length > 0 && colState.filters[i].value != '') ? "red" : "none"}/>
+        </PopoverTrigger>
+        <PopoverContent>
+          <PopoverHeader>Filter expressions</PopoverHeader>
+          <PopoverBody>
+            <Flex direction={"column"}>
+              <Flex>
+                <Select width={20} onInput={(e)=>{updateFilters(row,{...colState.filters[row], comparison:e.target.value})}}>
+                  <option>{'>'}</option>
+                  <option>{'<'}</option>
+                  <option>{'='}</option>
+                  <option>{'<>'}</option>
+                </Select>
+                <Input placeholder="Filter value" onInput={(e)=>{updateFilters(row,{...colState.filters[row], value:e.target.value})}}></Input>
+              </Flex>
+              <Input placeholder="Search" onInput={(e)=>{
+                if (e.target.value == '') updateFilters(row,{...colState.filters[i], value:''});
+                else updateFilters(row,{...colState.filters[i], value:`%${e.target.value}%`,comparison:"like"});
+              }}></Input>
+              <Checkbox>Hidden</Checkbox>
+            </Flex>
+          </PopoverBody>
+        </PopoverContent>
+      </Popover>
+    );
+  }
   return (
       <Thead>
         <Tr>
@@ -84,33 +117,7 @@ function DataHeader({rows, rowMask, colState, colStateSetter, tableOptions = {}}
                   <span style={{cursor: "pointer"}} onClick={(e)=>{colStateSetter({filters:colState.filters,sort:{target:row,direction:-colState.sort.direction}});}}>
                     {typeof (rowMask[i]) == 'undefined' ? row : rowMask[i]}
                   </span>
-                  <Popover>
-                    <PopoverTrigger>
-                      <ArrowUpDownIcon color={(colState.filters.length > 0 && colState.filters[i].value != '') ? "red" : "none"}/>
-                    </PopoverTrigger>
-                    <PopoverContent>
-                      <PopoverHeader>Filter expressions</PopoverHeader>
-                      <PopoverBody>
-                        <Flex direction={"column"}>
-                          <Flex>
-                            <Select width={20} onInput={(e)=>{updateFilters(row,{...colState.filters[row], comparison:e.target.value})}}>
-                              <option>{'>'}</option>
-                              <option>{'<'}</option>
-                              <option>{'='}</option>
-                              <option>{'<>'}</option>
-                            </Select>
-                            <Input placeholder="Filter value" onInput={(e)=>{updateFilters(row,{...colState.filters[row], value:e.target.value})}}></Input>
-                          </Flex>
-                          <Input placeholder="Search" onInput={(e)=>{
-                            if (e.target.value == '') updateFilters(row,{...colState.filters[i], value:''});
-                            else updateFilters(row,{...colState.filters[i], value:`%${e.target.value}%`,comparison:"like"});
-                          }}></Input>
-
-                          {/* <Button>Apply filters</Button> */}
-                        </Flex>
-                      </PopoverBody>
-                    </PopoverContent>
-                  </Popover>
+                  <ColumnSettingsPopover row={row} i={i}/>
                 </Flex>
               
                 {i == rows.length-1 ? (SettingsPopover(row,i)) : ''}
@@ -281,6 +288,7 @@ function useTableOptions(tableName = '') {
 }
 function normalizeDate(date,dateSeparator='-',withTime=true,withDate=true) {
   date = new Date(date);
+  if (date.getFullYear() == 1970) return '';
   let dateStr = `${date.getDate()}${dateSeparator}${(date.getMonth()+1)}${dateSeparator}${date.getFullYear()}`;
   let hourStr = `${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}:${date.getSeconds().toString().padStart(2,'0')}`;
   let _date = [];
@@ -334,7 +342,7 @@ async function GetTableColors(target_table) {//
     confstates.push({
       id: target_id,
       state: target_state,
-      sumstate: states[i].trade_state + states[i].logistics_state + states[i].production_state + states[i].technics_state + ((states[i].quality_state == 2) ? 1 : 0)
+      sumstate: states[i].trade_state + states[i].logistics_state + (states[i].production_state==1) + states[i].technics_state + ((states[i].quality_state == 2) ? 1 : 0)
     });
   }
 
@@ -346,7 +354,7 @@ async function GetTableColors(target_table) {//
         continue;
       }
       if (target_table == 'trades') {
-        if (confstates[i].sumstate >= 4) {
+        if (confstates[i].sumstate == 4) {
           colors.push({id:confstates[i].id,color:'rgb(166, 255, 170)'});
         } else {
           colors.push({id:confstates[i].id,color:'rgb(250, 250, 172)'});
@@ -363,6 +371,8 @@ async function GetTableColors(target_table) {//
           colors.push({id:confstates[i].id,color:'rgb(250, 250, 172)'});
         } else if (confstates[i].state == 1) {
           colors.push({id:confstates[i].id,color:'rgb(166, 255, 170)'});
+        } else if (confstates[i].state == 2) {
+          colors.push({id:confstates[i].id,color:'rgb(180, 180, 255)'});
         }
       }
     }

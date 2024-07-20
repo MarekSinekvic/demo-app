@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useReducer, useRef, useState } from "react";
 import {ChangeableText} from '../DetailedDescription.js'
 
 import { AlertDialog, AlertDialogBody, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogOverlay, Button, CloseButton, Divider, Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerHeader, DrawerOverlay, Flex, Heading, Input, Stack, StackDivider, Text, Textarea, useDisclosure } from "@chakra-ui/react";
@@ -50,10 +50,26 @@ function GroupsManipulator({onChange}) {
     const [users,setUsers] = useState([]);
     const [nonGroupusers, setNonGroupUsers] = useState([]);
     const [groups,setGroups] = useState([]);
+
+    const updateUsersView = async (group_id,_searchTerm = "")=>{
+        let users = await window.DB.getGeneralRaw(`select users.* from users join users_groups_membership on group_id=${group_id} and user_id=users.id where users.name like "%${_searchTerm}%"`);
+        let nonGrUsers = await window.DB.getGeneralRaw(`select * from users where users.id not in (select user_id from users_groups_membership where group_id=${group_id}) and users.name like "%${_searchTerm}%"`);
+        setUsers(users);
+        setNonGroupUsers(nonGrUsers);
+    }
+    const [searchTerm, setSearchTerm] = useReducer((state,action)=>{
+        if (selectedGroup != -1)
+            updateUsersView(selectedGroup,action);
+        else
+            updateUsersView(0,action);
+        state = action;
+    },"");
+
+    
     
     useEffect(()=>{
         (async ()=>{
-            let users = await window.DB.getGeneralRaw(`select * from users`);
+            let users = await window.DB.getGeneralRaw(`select * from users where name like "%${searchTerm}%"`);
             let groups = await window.DB.getGeneralRaw(`select * from users_groups`);
 
             setUsers(users); setGroups(groups);
@@ -74,10 +90,7 @@ function GroupsManipulator({onChange}) {
                         <Flex gap={3} justifyContent={'space-between'}>
                             <Flex direction={'column'}>
                                 {groups.map((g,i)=>{return (<Flex key={i} cursor={'pointer'} justifyContent={'space-between'} alignItems={'center'} onClick={async ()=>{
-                                    let users = await window.DB.getGeneralRaw(`select users.* from users join users_groups_membership on group_id=${g.id} and user_id=users.id`);
-                                    let nonGrUsers = await window.DB.getGeneralRaw(`select * from users where users.id not in (select user_id from users_groups_membership where group_id=${g.id})`);
-                                    setUsers(users);
-                                    setNonGroupUsers(nonGrUsers);
+                                    updateUsersView(g.id);
                                     setSelectedGroup(g.id);
                                 }} borderBottom={(selectedGroup==g.id)?'1px solid red':''}>
                                     {g.name} <CloseButton size={'sm'} onClick={()=>{groupDeleteDisc.onOpen();}}></CloseButton>
@@ -96,12 +109,12 @@ function GroupsManipulator({onChange}) {
                             </Flex>
                             <Flex style={{width:'0.8px',backgroundColor:'black'}}></Flex>
                             <Flex direction={'column'}>
+                                <Input size={'xs'} onChange={(e)=>{setSearchTerm(e.target.value);}} placeholder="Search"/>
                                 {users.map((u,i)=>{return <Flex key={i} justifyContent={'space-between'}>
                                     {u.name}
                                     <Button size={'xs'} variant={'outline'} onClick={async ()=>{
                                         await window.DB.getGeneralRaw(`delete from users_groups_membership where group_id=${selectedGroup} and user_id=${u.id}`);
-                                        setUsers(await window.DB.getGeneralRaw(`select users.* from users join users_groups_membership on group_id=${selectedGroup} and user_id=users.id`));
-                                        setNonGroupUsers(await window.DB.getGeneralRaw(`select * from users where users.id not in (select user_id from users_groups_membership where group_id=${selectedGroup})`));
+                                        updateUsersView(selectedGroup,searchTerm);
                                         onChange();
                                     }}><DeleteIcon/></Button>
                                 </Flex>})}
@@ -111,8 +124,7 @@ function GroupsManipulator({onChange}) {
                                             {u.name}
                                             <Button size={'xs'} variant={'outline'} onClick={async ()=>{
                                                 await window.DB.getGeneralRaw(`insert into users_groups_membership (user_id,group_id) values (${u.id},${selectedGroup})`);
-                                                setUsers(await window.DB.getGeneralRaw(`select users.* from users join users_groups_membership on group_id=${selectedGroup} and user_id=users.id`));
-                                                setNonGroupUsers(await window.DB.getGeneralRaw(`select * from users where users.id not in (select user_id from users_groups_membership where group_id=${selectedGroup})`));
+                                                updateUsersView(selectedGroup);
                                                 onChange();
                                             }}><AddIcon/></Button>
                                         </Flex>

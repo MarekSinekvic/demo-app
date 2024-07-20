@@ -1,31 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import { DataTable, GetTableColors, SQLFilterCondition, SQLOrderCondition, normalizeDate, useModalStyler, useProcessingTypes, useTableOptions, useTableState } from "../DataTable";
-import { Button, Divider, Flex, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, ModalOverlay, Stack, Text } from "@chakra-ui/react";
-import { DetailedDescription, DrawerFullData } from "../DetailedDescription";
+import { Button, Checkbox, Divider, Flex, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, ModalOverlay, Radio, RadioGroup, Stack, Text } from "@chakra-ui/react";
+import { CompletedCheckbox, DetailedDescription, DrawerFullData } from "../DetailedDescription";
 import LogisticsTab from "./LogisticsTab";
 import { Link } from "react-router-dom";
 import { ArrowRightIcon } from "@chakra-ui/icons";
-import { FileAttach } from "../FileAttach";
+import { attachFiles, FileAttach } from "../FileAttach";
 import { SelectLinks, SelectTable, useLinksSelector } from "../DataSelector";
 import { DataUpdateCheck } from "../HomePage";
 import { SimpleAdderModal, useSimpleAdder } from "../SimpleAdderModal";
 
-async function attachFiles(files,production_id) {
-    await window.DB.getGeneralRaw(`
-      delete from production_files_links 
-      where production_id=${production_id}
-    `);
-    files.map(async (file)=>{
-      file = file.split('\\').join('\\\\');
-      let file_id = (await window.DB.getGeneralRaw(`
-        replace into files_links (file_path)
-        values ('${file}')
-      `)).insertId;
-      window.DB.getGeneralRaw(`
-        insert into production_files_links (production_id,file_id) values (${production_id},${file_id})
-      `);
-    });
-}
+
 function ProductionAdder({disclosure,target_id=-1,inpsInitValues={}}) {
     const [modalSize,setModalSize] = useState('xl');
     const initValues = {inMatCount:0,deadLineDate:'', weight:null,waste:null};
@@ -59,6 +44,7 @@ function ProductionAdder({disclosure,target_id=-1,inpsInitValues={}}) {
     const InnerMaterialSelector = useLinksSelector();
     let MaterialsTable = ({outer_onRowClick})=>{return <SelectTable style={{width:'100%'}} effectors={[innerMaterialAdder.closure.isOpen]} outer_onRowClick={outer_onRowClick} sqlName="materials"/>};
     useEffect(()=>{
+        //prodModal.setValues(inpsInitValues);
         if (InnerMaterialSelector.isSelecting) setModalSize('full');
         else setModalSize('xl');
     },[InnerMaterialSelector.isSelecting]);
@@ -84,8 +70,8 @@ function ProductionAdder({disclosure,target_id=-1,inpsInitValues={}}) {
                             </Flex>
                         </Stack>
                         <Stack direction={'row'}>
-                            <Input type="number" placeholder="Weights (kg)" onChange={(e)=>{prodModal.pushValues({weight:e.target.value})}} border={prodModal.borderStyle('weight')}/>
-                            <Input type="number" placeholder="Waste" onChange={(e)=>{prodModal.pushValues({waste:e.target.value})}} border={prodModal.borderStyle('waste')}/>
+                            <Input type="number" defaultValue={inpsInitValues.weight} placeholder="Weights (kg)" onChange={(e)=>{prodModal.pushValues({weight:e.target.value})}} border={prodModal.borderStyle('weight')}/>
+                            <Input type="number" defaultValue={inpsInitValues.waste} placeholder="Waste" onChange={(e)=>{prodModal.pushValues({waste:e.target.value})}} border={prodModal.borderStyle('waste')}/>
                         </Stack>
                     </ModalBody>
                     <ModalFooter>
@@ -144,17 +130,33 @@ function ProductionDescription({productionTable,innerMaterials, controlable=fals
                             </Flex>
                         </Flex>
                         <Flex marginY={2}></Flex>
-                        <Flex>
+                        {/* <Flex>
                             <Text>Logistics id: {(productionTable.fullData[productionTable.detailsTarget].logistics_id)}</Text>
-                        </Flex>
+                        </Flex> */}
                     </Flex>
                 </Flex>
                 <Flex>
-                    <FileAttach table={productionTable} haveControl={controlable} attachFunc={attachFiles}/>
+                    <FileAttach files={productionTable.files} filesSetter={productionTable.setFiles} haveControl={controlable && productionTable.fullData[productionTable.detailsTarget].processing_state == 0} attachFunc={(files)=>{attachFiles(files,productionTable.fullData[productionTable.detailsTarget].id,'production_files_links','production_id')}} clearFiles={()=>{attachFiles([],productionTable.fullData[productionTable.detailsTarget].id,'production_files_links','production_id')}}/>
                 </Flex>
             </Flex>
         </>
     );
+}
+function StateCheckboxes({table}) {
+    return (
+        <RadioGroup>
+            <Flex direction={'column'}>
+                <CompletedCheckbox table={table}></CompletedCheckbox>
+                <Checkbox onChange={(e)=>{
+                    window.DB.getGeneralRaw(
+                        `update ${table.tableNameRef.current}
+                        set processing_state=${e.target.checked ? 2 : 0}
+                        where id=${table.fullData[table.detailsTarget].id}`
+                    );
+                }}>Producting</Checkbox>
+            </Flex>
+        </RadioGroup>
+    )
 }
 
 export default function ProductionTab({outer_onRowClick = ()=>{}}) {
@@ -228,7 +230,7 @@ export default function ProductionTab({outer_onRowClick = ()=>{}}) {
             editTarget.current = productionTable.fullData[productionTable.detailsTarget].id;
             editInitValues.current = {weight:productionTable.fullData[productionTable.detailsTarget].weight,waste:productionTable.fullData[productionTable.detailsTarget].waste,date:productionTable.fullData[productionTable.detailsTarget].date};
             productionTable.AddDisclosure.onOpen();            
-        } : undefined} tableState={productionTable} isStateSetterVisibile={isTabControlable}>
+        } : undefined} tableState={productionTable} isStateSetterVisibile={isTabControlable} StateCheckboxes={StateCheckboxes}>
             <ProductionDescription productionTable={productionTable} innerMaterials={innerMaterials} controlable={isTabControlable}/>
         </DetailedDescription>
         <ProductionAdder disclosure={productionTable.AddDisclosure} target_id={editTarget.current} inpsInitValues={editInitValues.current}/>

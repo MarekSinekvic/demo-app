@@ -10,24 +10,8 @@ import TradesTab from "./TradesTab.js";
 import { ArrowRightIcon, ChevronRightIcon } from "@chakra-ui/icons";
 import { DataUpdateCheck } from "../HomePage.js";
 import { DetailsPopover } from "../GeneralElements.js";
-import { FileAttach } from "../FileAttach.js";
+import { attachFiles, FileAttach } from "../FileAttach.js";
 
-async function attachFiles(files,quality_id) {
-  await window.DB.getGeneralRaw(`
-    delete from quality_files_links 
-    where quality_id=${quality_id}
-  `);
-  files.map(async (file)=>{
-    file = file.split('\\').join('\\\\');
-    let file_id = (await window.DB.getGeneralRaw(`
-      replace into files_links (file_path)
-      values ('${file}')
-    `)).insertId;
-    window.DB.getGeneralRaw(`
-      insert into quality_files_links (quality_id,file_id) values (${quality_id},${file_id})
-    `);
-  });
-}
 function QualityAddModal({closure,tableState,targetId,inpsInitValues}) {
     const [status,setStatus] = useState(0);
     const initValues = {startDate: '',endDate:''};
@@ -53,7 +37,7 @@ function QualityAddModal({closure,tableState,targetId,inpsInitValues}) {
               <Stack direction={'row'}><Input type="datetime-local" onInput={(e)=>{modalState.setValues({...modalState.values, startDate: e.target.value})}}/><Flex w={'20%'} alignItems={'center'}>Start date</Flex></Stack>
               <Stack direction={'row'}><Input type="datetime-local" onInput={(e)=>{modalState.setValues({...modalState.values, endDate: e.target.value})}}/><Flex w={'20%'} alignItems={'center'}>End date</Flex></Stack>
               <Stack direction={'row'}><Checkbox onInput={(e)=>{setStatus(e.target.checked)}}/> <Text>Quality passed</Text></Stack>
-              <FileAttach table={tableState} attachFunc={attachFiles}/>
+              <FileAttach files={tableState.files} filesSetter={tableState.setFiles} attachFunc={(files)=>{attachFiles(files,tableState.fullData[tableState.detailsTarget].id,"quality_files_links","quality_id")}} clearFiles={()=>{attachFiles([],tableState.fullData[tableState.detailsTarget].id,"quality_files_links","quality_id")}}/>
             </Stack>
           </ModalBody>
           <ModalFooter>
@@ -87,6 +71,7 @@ function QualityTab({tabTransition,outer_onRowClick=()=>{},style={}}) {
     const editTarget = useRef(-1);
     
     const isTabControlable = (window.sessionStorage.getItem('task') == 6);
+    const isLineFinished = useRef(true);
 
     function updateTable() {
       let Rows = ['id','date','check_start_date','check_end_date','status'];
@@ -150,7 +135,7 @@ function QualityTab({tabTransition,outer_onRowClick=()=>{},style={}}) {
             {/* <DrawerFullData tableState={qualityTable}/> */}
             
           <Divider my={3}/>
-            <FileAttach table={qualityTable} attachFunc={attachFiles} haveControl={!isTabControlable}/>
+            <FileAttach files={qualityTable.files} filesSetter={qualityTable.setFiles} attachFunc={(files)=>{attachFiles(files,qualityTable.fullData[qualityTable.detailsTarget].id,"quality_files_links","quality_id")}} haveControl={isTabControlable} clearFiles={()=>{attachFiles([],qualityTable.fullData[qualityTable.detailsTarget].id,"quality_files_links","quality_id")}}/>
           </DetailedDescription>
         </>
     );

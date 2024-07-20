@@ -104,6 +104,24 @@ function SettingsTab() {
                         <AccordionIcon />
                     </AccordionButton>
                     <AccordionPanel>
+                        <Stack direction={'row'} h={'400px'} overflow={'auto'}>
+                            <Box w={'50%'}>                                
+                                <DefaultTable sqlTarget="materials"/>
+                            </Box>
+                            <Divider orientation="vertical" height={'100%'}></Divider>
+                            <Box w={'50%'}>
+                                <DefaultTable sqlTarget="user_tasks"/>
+                                <DefaultTable sqlTarget="users"/>
+                            </Box>
+                        </Stack>
+                    </AccordionPanel>
+                </AccordionItem>
+                <AccordionItem>
+                    <AccordionButton>
+                        External companies tables
+                        <AccordionIcon />
+                    </AccordionButton>
+                    <AccordionPanel>
                         <Stack direction={'row'} h={'400px'}>
                             <Box overflowY={'auto'} width={'50%'}>
                                 <DefaultTable sqlTarget="trades_companies"/>
@@ -113,25 +131,7 @@ function SettingsTab() {
                                 <DefaultTable sqlTarget="logistic_companies"/>
                             </Box>
                         </Stack>
-                        <Stack direction={'row'} h={'400px'}>
-                            <Box w={'50%'}>
-                                {/* <DefaultTable sqlTarget="user_tasks"/> */}
-                                
-                                <DefaultTable sqlTarget="materials"/>
-                            </Box>
-                            <Divider orientation="vertical" height={'100%'}></Divider>
-                            <Box w={'50%'}>
-                                <DefaultTable sqlTarget="users"/>
-                            </Box>
-                        </Stack>
                     </AccordionPanel>
-                </AccordionItem>
-                <AccordionItem>
-                    <AccordionButton>
-                        
-                        <AccordionIcon />
-                    </AccordionButton>
-                    <AccordionPanel></AccordionPanel>
                 </AccordionItem>
             </Accordion>
         </>

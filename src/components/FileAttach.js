@@ -2,13 +2,28 @@ import { Button, Flex, Link } from "@chakra-ui/react";
 import React from "react";
 
 
-
-function FileAttach({table, haveControl = true, attachFunc}) { 
+async function attachFiles(files,row_id,sqlTableName,sqlIdName) {
+    await window.DB.getGeneralRaw(`
+      delete from ${sqlTableName}
+      where ${sqlIdName}=${row_id}
+    `);
+    files.map(async (file)=>{
+      file = file.split('\\').join('\\\\');
+      let file_id = (await window.DB.getGeneralRaw(`
+        replace into files_links (file_path)
+        values ('${file}')
+      `)).insertId;
+      window.DB.getGeneralRaw(`
+        insert into ${sqlTableName} (${sqlIdName},file_id) values (${row_id},${file_id})
+      `);
+    });
+  }
+function FileAttach({files,filesSetter, haveControl = true, attachFunc = (files,rowId)=>{}, clearFiles = (rowId)=>{}}) { 
     
     return (
         <Flex direction={'column'} justifyItems={'center'}>
             <Flex direction={'column'} fontSize={12}>
-                {table.files.map((file,i)=>{
+                {files.map((file,i)=>{
                     return <Link key={i} onClick={()=>{window.Files.openFolder(file)}}>{file}</Link>
                 })}
             </Flex>
@@ -17,15 +32,15 @@ function FileAttach({table, haveControl = true, attachFunc}) {
                     <Flex className="chakra-button css-11494p6">Attach files</Flex>
                 </label>
                 <input id="file_selector" type="file" multiple hidden onChange={(e)=>{
-                    let files = [];
-                    for (let file of e.target.files) {files.push(file.path);}
-                        attachFunc(files,table.fullData[table.detailsTarget].id);
-                        table.setFiles(files);
-                    }}
+                    let nfiles = [...files];
+                    for (let file of e.target.files) {nfiles.push(file.path);}
+                    attachFunc(nfiles);
+                    filesSetter(nfiles);
+                }}
                 />
-                <Button variant={'outline'} onClick={()=>{attachFunc([],table.fullData[table.detailsTarget].id);table.setFiles([]);}}>Clear files</Button>
+                <Button variant={'outline'} onClick={()=>{clearFiles(); filesSetter([]);}}>Clear files</Button>
             </Flex>
         </Flex>
     );
 }
-export {FileAttach}
+export {FileAttach,attachFiles}

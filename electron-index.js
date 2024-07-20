@@ -47,6 +47,7 @@ autoUpdater.setFeedURL({url:updateUrl});
 function checkUpdates() {
     autoUpdater.checkForUpdates();
     autoUpdater.on('update-available',(e)=>{
+        sendLog(e);
         console.log('UPDATE');
         console.log(e);
         dialog.showMessageBox({
@@ -93,8 +94,9 @@ db.connect((e)=>{
 
 let aquery = utils.promisify(db.query).bind(db);
 
-const createWindow = () => {
-    const win = new BrowserWindow({
+let mainWin, loadingWin;
+const createMainWindow = () => {
+    mainWin = new BrowserWindow({
         width: 1000,
         height: 600,
         autoHideMenuBar: true,
@@ -103,18 +105,27 @@ const createWindow = () => {
         }
     });
     console.log(path.join(__dirname,'mainPreload.js'));
-    win.setMenuBarVisibility(false);
-    win.maximize();
+    mainWin.setMenuBarVisibility(false);
+    mainWin.maximize();
     
-    console.log(process.env.NODE_ENV);
-    // win.loadURL("http://localhost:3000");
-    win.loadFile(path.join(__dirname,"build/index.html"))
+    sendLog(process.env.NODE_ENV);
+    // mainWin.loadURL("http://localhost:3000");
+    mainWin.loadFile(path.join(__dirname,"build/index.html"))
     // process.env.NODE_ENV == "development" ? win.loadURL("http://localhost:3000") : win.loadFile(path.join(__dirname,"build/index.html"));
-    win.webContents.openDevTools();
-
-
+    mainWin.webContents.openDevTools();
+    return mainWin;
+}
+const createLoadingWindow = () => {
+    loadingWin = new BrowserWindow({
+        show: false, frame: false
+    });
+    loadingWin.loadFile("src/loading.html");
+    return loadingWin;
 }
 
+function sendLog(data = '') {
+    mainWin.webContents.send('LOG',data);
+}
 let dbIpcHandlers = {
     "try-reconnect": async (ev) => {
         checkMysqlOptions();
@@ -230,5 +241,19 @@ app.on("ready",() => {
             require('child_process').exec(`start "" "${pngFilePath}"`);
         })();
     });
-    createWindow();
-})
+    ipcMain.handle('check-update', async (ev)=>{
+        return 
+    })
+    createLoadingWindow();
+    loadingWin.once('show',()=>{
+        createMainWindow();
+        mainWin.hide();
+        mainWin.webContents.once('dom-ready',()=>{
+            mainWin.show();
+            loadingWin.hide();
+            loadingWin.close();
+        });
+        sendLog(updateUrl);
+    });
+    loadingWin.show();
+});

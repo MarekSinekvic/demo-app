@@ -10,26 +10,10 @@ import TradesTab from "./TradesTab.js";
 import { AddIcon, ChevronRightIcon } from "@chakra-ui/icons";
 import { DataUpdateCheck } from "../HomePage.js";
 import { DetailsPopover } from "../GeneralElements.js";
-import { FileAttach } from "../FileAttach.js";
+import { attachFiles, FileAttach } from "../FileAttach.js";
 import {SimpleAdderModal,useSimpleAdder} from "../SimpleAdderModal.js";
 import { ReactBarcode } from 'react-jsbarcode';
 
-async function attachFiles(files,logistic_id) {
-  await window.DB.getGeneralRaw(`
-    delete from logistic_files_links 
-    where logistic_id=${logistic_id}
-  `);
-  files.map(async (file)=>{
-    file = file.split('\\').join('\\\\');
-    let file_id = (await window.DB.getGeneralRaw(`
-      replace into files_links (file_path)
-      values ('${file}')
-    `)).insertId;
-    window.DB.getGeneralRaw(`
-      insert into logistic_files_links (logistic_id,file_id) values (${logistic_id},${file_id})
-    `);
-  });
-}
 function LogisticsAddModal({closure,target_id=-1,inpsInitValues={}}) {
     const [files,setFiles] = useState([]);
 
@@ -54,20 +38,21 @@ function LogisticsAddModal({closure,target_id=-1,inpsInitValues={}}) {
                 shipment_date='${values.shipment_date}',unloading_date='${values.unloading_date}',
                 company=(select id from logistic_companies where company='${values.transport_company}' limit 1),
                 processing_state=1,
-                truck_number=${values.truck_number},
+                truck_number='${values.truck_number}',
                 weight=${values.weight},
-                storage_zone=${values.storage_zone}
+                storage_zone='${values.storage_zone}'
               where id=${target_id}
             `));
             logist_id = target_id;
           }
-          attachFiles(files,logist_id);
+          attachFiles(files,logist_id,'logistic_files_links','logistic_id');
         })();
       }
     });
 
     useEffect(()=>{
-      modalStyle.setValues({transport_company:inpsInitValues.transport_company, price:inpsInitValues.price, count:inpsInitValues.count, shipment_date:inpsInitValues.shipment_date});
+      modalStyle.setValues(inpsInitValues);
+      console.log(inpsInitValues.shipment_date);
       window.DB.getGeneralRaw(`select * from logistic_companies`).then((v)=>{
         setLogisticComps(v);
       });
@@ -123,23 +108,17 @@ function LogisticsAddModal({closure,target_id=-1,inpsInitValues={}}) {
             
             <Flex direction={'column'}>
               <Flex alignItems={'center'}>
-                <Input defaultValue={String(inpsInitValues.shipment_date)} type="datetime-local" onInput={(e)=>{modalStyle.setValues({...modalStyle.values,shipment_date:e.target.value})}} border={modalStyle.borderStyle('shipment_date')}></Input>
+                <Input defaultValue={(inpsInitValues.shipment_date)} type="datetime-local" onInput={(e)=>{modalStyle.setValues({...modalStyle.values,shipment_date:e.target.value})}} border={modalStyle.borderStyle('shipment_date')}></Input>
                 <Text px={2} whiteSpace={'nowrap'}>Loading date</Text>
               </Flex>
               <Flex alignItems={'center'}>
-                <Input defaultValue={String(inpsInitValues.shipment_date)} type="datetime-local" onInput={(e)=>{modalStyle.setValues({...modalStyle.values,unloading_date:e.target.value})}} border={modalStyle.borderStyle('shipment_date')}></Input>
+                <Input defaultValue={(inpsInitValues.unloading_date)} type="datetime-local" onInput={(e)=>{modalStyle.setValues({...modalStyle.values,unloading_date:e.target.value})}} border={modalStyle.borderStyle('shipment_date')}></Input>
                 <Text px={2} whiteSpace={'nowrap'}>Unloading date</Text>
               </Flex>
             </Flex>
 
             <Stack direction={'column'}>
-              <Input type="file" multiple border={'none'} padding={0} onChange={(e)=>{
-                let files = []; 
-                for (let file of e.target.files) {
-                  files.push(file.path);
-                }
-                setFiles(files);
-              }}/>
+            <FileAttach files={files} filesSetter={setFiles}/>
             </Stack>
             <datalist id='logistic_companies'>
               {logisticComps.map((comp,i)=>{
@@ -162,7 +141,6 @@ function LogisticsAddModal({closure,target_id=-1,inpsInitValues={}}) {
     );
 }
 function LogisticsDetailedDescription({logisticTable,tabTransition,controlable=false}) {
-  console.log();
   const barcodeData = useRef('0');
   const barcodeRef = useRef(null);
   useEffect(()=>{
@@ -175,7 +153,7 @@ function LogisticsDetailedDescription({logisticTable,tabTransition,controlable=f
       `))[0];
       
       const normLength = (num, len) => {if (num === null) return ''.padStart(len,'0'); return num.toString().padStart(len,'0')}
-      let dataArr = [normLength(target.id,4), normLength(data.id,3), normLength(data.material_count,4), normLength(target.weight,4), 
+      let dataArr = [normLength(target.id,4), normLength(data.id,3), normLength(data.material_count,4), normLength(target.weight,5), 
                     normLength(target.date.getFullYear(),4),normLength(target.date.getMonth(),2),normLength(target.date.getDate(),2)];
       console.log(data,target);
       console.log(dataArr);
@@ -206,7 +184,9 @@ function LogisticsDetailedDescription({logisticTable,tabTransition,controlable=f
         </Flex>
         <Flex bg={'black'} w={'1px'}></Flex>
         <Flex direction="column" alignItems={'center'} justifyContent={'center'}>
-          <FileAttach table={logisticTable} haveControl={controlable}/>
+          <FileAttach files={logisticTable.files} filesSetter={logisticTable.setFiles} haveControl={controlable && logisticTable.fullData[logisticTable.detailsTarget].processing_state == 0} attachFunc={(files)=>{
+            attachFiles(files,logisticTable.fullData[logisticTable.detailsTarget].id,'logistic_files_links','logistic_id');
+          }} clearFiles={()=>{attachFiles([],logisticTable.fullData[logisticTable.detailsTarget].id,'logistic_files_links','logistic_id')}}/>
           {controlable ? (
             <Button p={0} w={'fit-content'} h={'fit-content'} variant={'ghost'} onClick={()=>{
               window.Files.saveBarcode(barcodeRef.current.children[0].outerHTML);
@@ -284,9 +264,11 @@ function LogisticsTab({tabTransition,outer_onRowClick=()=>{},style={}}) {
             logisticTable.DetailsDisclosure.onClose();
             window.DB.getGeneralRaw(`delete from logistics where id=${logisticTable.fullData[logisticTable.detailsTarget].id}`);
           }} onEdit={isTabControlable ? (()=>{
-            // console.log(logisticTable.fullData[logisticTable.detailsTarget]);
-            editTarget.current = logisticTable.fullData[logisticTable.detailsTarget].id;
-            editInitValues.current = {transport_company:logisticTable.fullData[logisticTable.detailsTarget].transport_comp_name, price:logisticTable.fullData[logisticTable.detailsTarget].price,count:logisticTable.fullData[logisticTable.detailsTarget].count,shipment_date:logisticTable.fullData[logisticTable.detailsTarget].shipment_date};
+            const target = logisticTable.fullData[logisticTable.detailsTarget];
+            editTarget.current = target.id;
+            editInitValues.current = {transport_company:target.transport_comp_name, price:target.price,count:target.count,
+                                      shipment_date:target.shipment_date, unloading_date:target.unloading_date,
+                                      weight:target.weight,truck_number:target.truck_number, storage_zone:target.storage_zone};
 
             logisticTable.AddDisclosure.onOpen();
           }) : undefined} tableState={logisticTable} isStateSetterVisibile={isTabControlable}>

@@ -1,6 +1,6 @@
 import react, { Children, useEffect, useId, useRef, useState } from 'react';
 
-import {Drawer,DrawerBody,DrawerFooter,DrawerHeader,DrawerOverlay,DrawerContent,CloseButton, Stack, useDisclosure, Input, Checkbox, Text} from '@chakra-ui/react';
+import {Drawer,DrawerBody,DrawerFooter,DrawerHeader,DrawerOverlay,DrawerContent,CloseButton, Stack, useDisclosure, Input, Checkbox, Text, Radio} from '@chakra-ui/react';
 import { Flex,Button } from '@chakra-ui/react';
 import React from 'react';
 import { ReactBarcode } from 'react-jsbarcode';
@@ -40,24 +40,34 @@ function DrawerFullData({tableState}) {
     </Flex>
   );
 }
-function DetailedDescription({children,disclosure, isStateSetterVisibile = true, onDelete=()=>{}, tableState=undefined, onEdit=undefined}) {  
-    // useEffect(()=>{console.log(data);},[data]);
-    const [procState,setProcState] = useState(0);
-    const barcodeRef = useRef(null);
-    const barcodeData = useRef('0');
-    useEffect(()=>{
-      if (typeof (tableState) != 'undefined') {
-        if (tableState.fullData.length > 0) {
-          (async ()=>{
-            let state = await window.DB.getGeneralRaw(`select processing_state from ${tableState.tableNameRef.current} where id=${tableState.fullData[tableState.detailsTarget].id}`);
-            if (state.length>0)
-              setProcState(state[0].processing_state);
-          })();
-          const row = tableState.fullData[tableState.detailsTarget];
-          barcodeData.current = `${row.id}`;
-        }
+function CompletedCheckbox({table}) {
+  const [procState,setProcState] = useState(0);
+  useEffect(()=>{
+    if (typeof (table) != 'undefined') {
+      if (table.fullData.length > 0) {
+        (async ()=>{
+          let state = await window.DB.getGeneralRaw(`select processing_state from ${table.tableNameRef.current} where id=${table.fullData[table.detailsTarget].id}`);
+          if (state.length>0)
+            setProcState(state[0].processing_state);
+        })();
+        const row = table.fullData[table.detailsTarget];
       }
-    },[disclosure.isOpen]);
+    }
+  },[]);
+  return (
+    <Checkbox isChecked={procState} onChange={(e)=>{
+      if (typeof (table) == 'undefined') return;
+      window.DB.getGeneralRaw(
+        `update ${table.tableNameRef.current}
+        set processing_state=${e.target.checked ? 1 : 0}
+        where id=${table.fullData[table.detailsTarget].id}`
+      );
+      setProcState(e.target.checked);
+    }}>Completed</Checkbox>
+  );
+}
+function DetailedDescription({children,disclosure, isStateSetterVisibile = true, StateCheckboxes = CompletedCheckbox, onDelete=()=>{}, tableState=undefined, onEdit=undefined}) {  
+    // useEffect(()=>{console.log(data);},[data]);
     return (
       <Drawer placement="bottom" onClose={disclosure.onClose} isOpen={disclosure.isOpen} size={"xl"}>
         <DrawerOverlay/>
@@ -73,20 +83,7 @@ function DetailedDescription({children,disclosure, isStateSetterVisibile = true,
               {/* <Button>Edit</Button> */}
               <Button bg={'rgb(205,50,50)'} color={'white'} onClick={()=>{onDelete(); disclosure.onClose()}}>Delete</Button>
               <Stack direction={'row'} alignItems={'center'}>
-                {isStateSetterVisibile ? (<><Checkbox isChecked={procState} onChange={(e)=>{
-                  if (typeof (tableState) == 'undefined') return;
-                  window.DB.getGeneralRaw(
-                    `update ${tableState.tableNameRef.current}
-                    set processing_state=${e.target.checked}
-                    where id=${tableState.fullData[tableState.detailsTarget].id}`
-                  );
-                  setProcState(e.target.checked);
-                }}/><Text>Completed</Text></>) : ('')}
-                {/* <Button p={0} variant={'ghost'} onClick={()=>{
-                  window.Files.saveBarcode(barcodeRef.current.children[0].outerHTML);
-                }}>
-                  <div ref={barcodeRef}><ReactBarcode value={barcodeData.current} options={{format:'MSI',width:2,height:30,fontSize:'10px'}} renderer='svg' className='barcode'></ReactBarcode></div>
-                </Button> */}
+                {isStateSetterVisibile ? (<StateCheckboxes table={tableState}/>) : ('')}
                 {typeof (onEdit) != 'undefined' ? (<Button variant={'outline'} onClick={()=>{onEdit(); disclosure.onClose()}}>Edit</Button>) : ''}
                 <Button onClick={()=>{disclosure.onClose()}} variant={'outline'}>Cancel</Button>
               </Stack>
@@ -95,4 +92,4 @@ function DetailedDescription({children,disclosure, isStateSetterVisibile = true,
         </DrawerContent>
       </Drawer>);
   }
-  export {DetailedDescription,DrawerFullData,ChangeableText};
+  export {DetailedDescription,DrawerFullData,ChangeableText,CompletedCheckbox};

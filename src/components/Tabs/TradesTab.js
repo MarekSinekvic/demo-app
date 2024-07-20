@@ -7,28 +7,12 @@ import {Modal,ModalOverlay,ModalContent,ModalHeader,ModalFooter,ModalBody,ModalC
 import {DataTable, GetTableColors, SQLFilterCondition,SQLOrderCondition, normalizeDate, useModalStyler,useProcessingTypes, useTableState} from "../DataTable.js";
 import {DetailedDescription, DrawerFullData} from "../DetailedDescription.js";
 import { AddIcon, ArrowRightIcon } from "@chakra-ui/icons";
-import { FileAttach } from "../FileAttach.js";
+import { attachFiles, FileAttach } from "../FileAttach.js";
 import { DataUpdateCheck } from "../HomePage.js";
 import { SelectLinks, SelectTable, useLinksSelector } from "../DataSelector.js";
 import { DetailsPopover } from "../GeneralElements.js";
 import {SimpleAdderModal,useSimpleAdder} from "../SimpleAdderModal.js";
 
-async function attachFiles(files,trade_id) {
-  await window.DB.getGeneralRaw(`
-    delete from trades_files_links 
-    where trade_id=${trade_id}
-  `);
-  files.map(async (file)=>{
-    file = file.split('\\').join('\\\\');
-    let file_id = (await window.DB.getGeneralRaw(`
-      replace into files_links (file_path)
-      values ('${file}')
-    `)).insertId;
-    window.DB.getGeneralRaw(`
-      insert into trades_files_links (trade_id,file_id) values (${trade_id},${file_id})
-    `);
-  });
-}
 function OrdersAddModal({closure}) {
     const initValues = {company:'', price:-1};
 
@@ -52,15 +36,15 @@ function OrdersAddModal({closure}) {
           insert into \`logistics\` (trade_id) values (${trade_id})
         `)).insertId;
         let production_id = (await window.DB.getGeneralRaw(`
-          insert into \`production\` (logistics_id) values (${logistics_id})
+          insert into \`production\` (logistics_id,trade_id) values (${logistics_id},${trade_id})
         `)).insertId;
         let technics_id = (await window.DB.getGeneralRaw(`
-          insert into \`technics\` (production_id) values (${production_id})
+          insert into \`technics\` (production_id,trade_id) values (${production_id},${trade_id})
         `)).insertId;
         let quality_id = (await window.DB.getGeneralRaw(`
-          insert into \`quality\` (production_id) values (${production_id})
+          insert into \`quality\` (production_id,trade_id) values (${production_id},${trade_id})
         `)).insertId;
-        attachFiles(files,trade_id);
+        attachFiles(files,trade_id,"trades_files_links","trade_id");
         closure.onClose();
     });
 
@@ -118,11 +102,7 @@ function OrdersAddModal({closure}) {
               <Flex w={'100%'}>
                 <SelectLinks style={{width:'100%'}} selector={matSelect} SelectTab={matTable} name='materials' dataToShow="material" onExpandData={()=>{materialAdder.closure.onOpen()}}/>
               </Flex>
-              <Input type="file" border={'none'} padding={0} multiple onChange={(e)=>{
-                let files = [];
-                for (let file of e.target.files) {files.push(file.path)}
-                setFiles(files);
-              }}></Input>
+              <FileAttach files={files} filesSetter={setFiles}/>
               <datalist id='companies'>
                 {tradeCompanies.map((v,i)=>{
                   return <option value={v} key={i}></option>
@@ -138,12 +118,19 @@ function OrdersAddModal({closure}) {
       </>
     );
 }
+function ColoredCircle({clr = 'red'}) {
+  return (
+    <Flex bg={clr} w={2} h={2} borderRadius={"100%"} pos={'relative'} top={0.5} mx={1}></Flex>
+  );
+}
 function OrdersDescription({table, controlable=false}) {
   const [transportingTarget,setTransportingTarget] = useState(-1);
   const [targetAddress, setTargetAddress] = useState('');
 
   const [assembledInfo, setAssembledInfo] = useState([]);
   const [productionInnerMats,setProductionInnerMats] = useState([]);
+
+  const [processingStates, setProcessingStates] = useState([]);
   // console.log(assembledInfo,productionInnerMats);
   useEffect(()=>{
     window.DB.getGeneralRaw(`
@@ -199,7 +186,18 @@ function OrdersDescription({table, controlable=false}) {
         setProductionInnerMats(data);
       }
     })();
+    (async ()=>{
+      let proc_states = await window.DB.getGeneralRaw(`
+        select trades.processing_state as trade_state, logistics.processing_state as logistic_state, production.processing_state as production_state, technics.processing_state as technics_state, quality.processing_state as quality_state from trades
+        join logistics on logistics.trade_id=trades.id
+        join production on production.trade_id=trades.id
+        join technics on technics.trade_id=trades.id
+        join quality on logistics.trade_id=trades.id`);
+        setProcessingStates(proc_states[table.detailsTarget]);
+        // console.log(proc_states);
+    })();
   },[table.detailsTarget]);
+  
   return (
     <>
       <Flex>
@@ -207,7 +205,7 @@ function OrdersDescription({table, controlable=false}) {
       </Flex>
       <Flex direction={'row'} gap={5} w={'100%'} justifyContent={'space-evenly'}>
         <Flex direction={'column'} gap={0.2}>
-          <Center>Trades</Center>
+          <Center alignContent={'center'}>Trades <ColoredCircle clr={processingStates.trade_state == 0 ? 'red' : 'green'}/></Center>
           <DetailsPopover targetTable={'trades_companies'}>
             <Flex justifyContent={'space-between'} gap={6}><Text>Company:</Text><Text>{table.fullData[table.detailsTarget].company}</Text></Flex>
           </DetailsPopover>
@@ -217,7 +215,7 @@ function OrdersDescription({table, controlable=false}) {
         </Flex>
         <Flex style={{width:'0.8px', backgroundColor:'rgba(0,0,0,0.1)'}}></Flex>
         <Flex direction={'column'}>
-          <Center>Logistics</Center>
+          <Center>Logistics <ColoredCircle clr={processingStates.logistic_state == 0 ? 'red' : 'green'}/></Center>
           <Flex justifyContent={'space-between'} gap={6}><Text>Company</Text><Text>{assembledInfo.transport_company}</Text></Flex>
           <Flex justifyContent={'space-between'} gap={6}><Text>Price</Text><Text>{assembledInfo.price}</Text></Flex>
           <Flex justifyContent={'space-between'} gap={6}><Text>Weight</Text><Text>{assembledInfo.logist_weight}</Text></Flex>
@@ -228,7 +226,7 @@ function OrdersDescription({table, controlable=false}) {
         </Flex>
         <Flex style={{width:'0.8px', backgroundColor:'rgba(0,0,0,0.1)'}}></Flex>
         <Flex direction={'column'}>
-          <Center>Production</Center>
+          <Center>Production <ColoredCircle clr={processingStates.production_state == 0 ? 'red' : (processingStates.production_state == 2 ? 'blue' : 'green')}/></Center>
           <Flex justifyContent={'space-between'} gap={6}><Text>Finish</Text><Text>{normalizeDate(assembledInfo.deadline_date)}</Text></Flex>
           <Flex justifyContent={'space-between'} gap={6}><Text>Weight</Text><Text>{assembledInfo.weight}</Text></Flex>
           <Flex justifyContent={'space-between'} gap={6}><Text>Waste</Text><Text>{assembledInfo.waste}</Text></Flex>
@@ -241,21 +239,21 @@ function OrdersDescription({table, controlable=false}) {
         </Flex>
         <Flex style={{width:'0.8px', backgroundColor:'rgba(0,0,0,0.1)'}}></Flex>
         <Flex direction={'column'}>
-          <Center>Technics</Center>
+          <Center>Technics <ColoredCircle clr={processingStates.technics_state == 0 ? 'red' : 'green'}/></Center>
           <Flex justifyContent={'space-between'} gap={6}><Text>Profilactics</Text><Text>{normalizeDate(assembledInfo.profilactics_date)}</Text></Flex>
           <Flex justifyContent={'space-between'} gap={6}><Text>Time</Text><Text>{assembledInfo.profilactics_time}</Text></Flex>
           <Flex justifyContent={'space-between'} gap={6}><Text>Description</Text><Text>{assembledInfo.profilactics_description}</Text></Flex>
         </Flex>
         <Flex style={{width:'0.8px', backgroundColor:'rgba(0,0,0,0.1)'}}></Flex>
         <Flex direction={'column'}>
-          <Center>Quality</Center>
+          <Center>Quality <ColoredCircle clr={processingStates.quality_state == 0 ? 'red' : 'green'}/></Center>
           <Flex justifyContent={'space-between'} gap={6}><Text>Start</Text><Text>{normalizeDate(assembledInfo.check_start_date)}</Text></Flex>
           <Flex justifyContent={'space-between'} gap={6}><Text>End</Text><Text>{normalizeDate(assembledInfo.check_end_date)}</Text></Flex>
           <Flex justifyContent={'space-between'} gap={6}><Text>State</Text><Text>{assembledInfo.processing_state}</Text></Flex>
         </Flex>
       </Flex>
       <br/>
-      <FileAttach table={table} haveControl={controlable}/>
+      <FileAttach files={table.files} filesSetter={table.setFiles} haveControl={(controlable && table.fullData[table.detailsTarget].processing_state == 0)} attachFunc={(files)=>{attachFiles(files,table.fullData[table.detailsTarget].id,"trades_files_links","trade_id");}} clearFiles={()=>{attachFiles([],table.fullData[table.detailsTarget].id,'trades_files_links','trade_id')}}/>
     </>
   );
 }
@@ -264,7 +262,7 @@ function TradesTab({outer_onRowClick=()=>{},tabTransition=()=>{}}) {
     const processingTypes = useProcessingTypes();
     const tradesTable = useTableState({sort:{target:'date',direction:-1},filters:[]},'trades');
 
-    const isTabControlable = window.sessionStorage.getItem('task') == 4;
+    const isTabControlable = (window.sessionStorage.getItem('task') == 4);
 
     function updateTable() {
       let Rows = ['trades.id','trades.date','comps.company','trades.price','mats.material', 'trades.material_count']; //trades.id,purchased_count,purchased_price, sold_count,sold_price,trades_companies.company
@@ -317,7 +315,7 @@ function TradesTab({outer_onRowClick=()=>{},tabTransition=()=>{}}) {
           onRowAdd={isTabControlable ? ()=>{} : undefined}
         />
         
-        <OrdersAddModal closure={tradesTable.AddDisclosure}></OrdersAddModal>
+        <OrdersAddModal closure={tradesTable.AddDisclosure} table={tradesTable}></OrdersAddModal>
         <DetailedDescription disclosure={tradesTable.DetailsDisclosure} onDelete={()=>{
           tradesTable.DetailsDisclosure.onClose();
           window.DB.getGeneralRaw(`delete from trades where id=${tradesTable.fullData[tradesTable.detailsTarget].id}`);

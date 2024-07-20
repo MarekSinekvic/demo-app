@@ -58,6 +58,13 @@ function DataUpdateCheck(tableUpdater,lastDataRef,sqlTarget = 'trades', term='')
     clearInterval(interval);
   };
 }
+function UpdaterOverlay() {
+  return (
+    <Flex pos={'fixed'} right={'10%'} bottom={'10%'}>
+      new version
+    </Flex>
+  );
+}
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -67,6 +74,19 @@ const HomePage = () => {
 
   const [tabsColors,setTabsColors] = useState(new Array(6).fill('transparent'));
 
+  const [newVersion, setNewVersion] = useState('');
+
+  useEffect(()=>{
+    return clearInterval(setInterval(()=>{
+      window.Update.checkUpdate().then((versions)=>{ // [0]=old, [1]=new
+        if (versions[0] != versions[1]) {
+          setNewVersion(versions[1]);
+        } else {
+          setNewVersion('');
+        }
+      });
+    }, 30000));
+  }, []);
   useEffect(()=>{
     (async ()=>{
       let _messages = await window.DB.getGeneralRaw(`select count(id) as count from users_messages where state=0 and receiver_id=${Number(window.sessionStorage.getItem('id'))}`)
@@ -124,6 +144,7 @@ const HomePage = () => {
           <TabPanel p={0}><StorageTab/></TabPanel>
         </TabPanels>
       </Tabs>
+      {newVersion != '' ? <UpdaterOverlay/> : ''}
         
         {/* <DataTable Data={window.DB.getLogistics} updateTable={updateUsersTable} caption="logistics table"/> */}
         {/* <Box position="relative" paddingY="7">

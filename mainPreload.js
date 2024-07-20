@@ -39,3 +39,12 @@ contextBridge.exposeInMainWorld('Files', {
         return ipcRenderer.invoke('save-barcode-svg',svg,path)
     }
 });
+contextBridge.exposeInMainWorld('Update', {
+    CheckUpdate: () => {
+        return ipcRenderer.invoke('check-update');
+    }
+});
+
+ipcRenderer.on("LOG", (ev,data)=>{
+    console.log(data);
+});

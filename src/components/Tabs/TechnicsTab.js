@@ -3,7 +3,7 @@ import { DataTable, GetTableColors, SQLFilterCondition, SQLOrderCondition, norma
 import { DetailedDescription, DrawerFullData } from "../DetailedDescription";
 import { Button, Checkbox, Divider, Flex, Input, Link, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, ModalOverlay, Select, Stack, Text, Textarea } from "@chakra-ui/react";
 import ProductionTab from "./ProductionTab";
-import { FileAttach } from "../FileAttach";
+import { attachFiles, FileAttach } from "../FileAttach";
 import { DataUpdateCheck } from "../HomePage";
 
 function TechnicsAdder({closure,target_id=-1}) {
@@ -137,7 +137,7 @@ function TechnicsDescription({table,controlable}) {
                 <Flex p={2} maxW={'100%'}>
                     {table.fullData[table.detailsTarget].profilactics_description}
                 </Flex>
-                <FileAttach table={table} haveControl={controlable}/>
+                <FileAttach files={table.files} filesSetter={table.setFiles} haveControl={controlable && table.fullData[table.detailsTarget].processing_state == 0} attachFunc={(files)=>{attachFiles(files,table.fullData[table.detailsTarget].id,"technics_files_links",'technics_id')}} clearFiles={()=>{attachFiles([],table.fullData[table.detailsTarget].id,"technics_files_links",'technics_id')}}/>
             </Flex>
         </Flex>
     );
@@ -210,7 +210,7 @@ function TechnicsTab({outer_onRowClick=()=>{},style={}}) {
             `);
         }} onEdit={window.sessionStorage.getItem('task') == 5 ? ()=>{editTarget.current = technicsTable.fullData[technicsTable.detailsTarget].id; technicsTable.AddDisclosure.onOpen()} : undefined} 
         tableState={technicsTable} isStateSetterVisibile={!isTabControlable}>
-            <TechnicsDescription table={technicsTable} controlable={isTabControlable}/>
+            <TechnicsDescription table={technicsTable} controlable={!isTabControlable}/>
         </DetailedDescription>
         <TechnicsAdder closure={technicsTable.AddDisclosure} target_id={editTarget.current}/>
     </>);
