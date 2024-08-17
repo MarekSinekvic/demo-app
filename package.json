@@ -15,11 +15,7 @@
     "react-jsbarcode": "^1.0.1"
   },
   "scripts": {
-    "react-start": "react-scripts start",
     "start": "electron-forge start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
     "electron-dev": "electron .",
     "package": "electron-forge package",
     "make": "electron-forge make"
